@@ -130,8 +130,14 @@ class SiteBaseWithLanguageRedirectResolver implements MiddlewareInterface
                         echo('<li>test browser languages with available languages: ' . $twoLetterIsoCode . '==' . ($this->useGetLocal ? $language->getLocale()->getLanguageCode() : $language->getTwoLetterIsoCode()) . ' (id=' . $language->getLanguageId() . ')</li>');
                     }
                     if (!$languageDetectionExclude && ($this->useGetLocal ? $language->getLocale()->getLanguageCode() : $language->getTwoLetterIsoCode()) == $twoLetterIsoCode) {
-                        return $this->doRedirect($request, $language, $configurationLanguageDetection, $debug,
-                            'found language');
+
+                        // handle typo3 error, site languages are not found if escaped character is in path %F6 -> show error
+                        $languagePath = $language->getBase()->getPath();
+                        $requestPath = $request->getRequestTarget();
+                        if (str_starts_with($requestPath, $languagePath))  {
+                            return $handler->handle($request);
+                        }
+                        return $this->doRedirect($request, $language, $configurationLanguageDetection, $debug, 'found language');
                         /*
                         $uri=$this->getRedirect( $language, $requestTarget);
                         if($debug) {
@@ -246,7 +252,7 @@ class SiteBaseWithLanguageRedirectResolver implements MiddlewareInterface
         bool $debug,
         string $text
     ): ResponseInterface {
-        if ($configurationLanguageDetection['appendPath'] && $request->getRequestTarget()) {
+        if (($configurationLanguageDetection['appendPath'] ?? false) && $request->getRequestTarget()) {
             //$site = $request->getAttribute('site', null);
             //var_dump($site->getConfiguration()['routeEnhancers']['PageTypeSuffix']['index'], $language->getBase(), $request->getRequestTarget(), $site);exit(0);
             $uri = rtrim((string)$language->getBase(), '/') . $request->getRequestTarget();
